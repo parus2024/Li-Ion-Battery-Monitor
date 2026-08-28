@@ -1,0 +1,474 @@
+esphome:
+  name: accu-li-ion-75ah
+  friendly_name: accu-li-ion-75ah
+substitutions:
+  device_ip: 192.168.0.220
+  version: "30.07.2026"
+  reboot_timeout: 0s
+  cs_pin: GPIO7
+  dc_pin: GPIO10
+  reset_pin: GPIO1
+  clk_pin: GPIO4 # (sck) 
+  miso_pin: GPIO5 # TFT(MISO)
+  mosi_pin: GPIO6 # TFT(MOSI)
+  backlight_pin: GPIO2 # LED яркость дисплея
+  one_wire_pin: GPIO3
+  one_wire_address: "0xa70119292b6e6128"
+  sda1: GPIO8
+  scl1: GPIO9
+  button_pin: GPIO0
+  ok_icon: "\U0000f046" # ok
+  error_icon: "\U0000f00d" # error
+  alert_icon: "\U0000f071" # alert
+  temperature_icon: "\U0000e939"
+
+<<: !include attach/common/esphome.yaml 
+<<: !include attach/common/esp/esp32_c3_idf.yaml
+<<: !include attach/common/logger/debug.yaml
+<<: !include attach/common/api.yaml
+<<: !include attach/common/ota.yaml
+<<: !include attach/common/wifi.yaml
+<<: !include attach/common/web/web_server3.yaml
+<<: !include attach/common/bus/i2c_a.yaml
+
+packages:
+  common: !include attach/packages/standart.yaml
+time: 
+  platform: sntp
+  id: sntp_time
+  timezone: Europe/Moscow
+  servers:
+   - 0.ru.pool.ntp.org
+   - ntp0.ntp-servers.net
+   - 2.pool.ntp.org
+globals:
+  - id: battery_ah_level
+    type: float
+    restore_value: true
+    initial_value: "0.0"
+spi:
+  clk_pin: ${clk_pin}
+  mosi_pin: ${mosi_pin}
+  miso_pin: ${miso_pin}
+color:
+  - id: my_white
+    red: 100%
+    green: 100%
+    blue: 100%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+  - id: my_red
+    red: 100%
+    green: 0%
+    blue: 0%
+  - id: my_orange
+    red: 100%
+    green: 60%
+    blue: 0%
+  - id: my_yellow
+    red: 100%
+    green: 100%
+    blue: 0%
+  - id: my_green
+    red: 0%
+    green: 100%
+    blue: 0%
+  - id: my_blue
+    red: 50%
+    green: 50%
+    blue: 100%
+  - id: my_siren
+    red: 100%
+    green: 50%
+    blue: 100%
+  - id: my_cyan
+    hex: 00FFFF
+  - id: my_gray
+    red: 50%
+    green: 50%
+    blue: 50%
+font:
+  - file: "fonts/arial.ttf"
+    id: arial_48
+    size: 48
+    glyphs: |-
+      ~*<>!"%()+=,-_.:°0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ абвгдеёжзийклмнопрстуфхцчшщьыъэюяabcdefghijklmnopqrstuvwxyz'/
+  - file: "fonts/arial.ttf"
+    id: arial_36
+    size: 36
+    glyphs: |-
+      ~*<>!"%()+=,-_.:°0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ абвгдеёжзийклмнопрстуфхцчшщьыъэюяabcdefghijklmnopqrstuvwxyz'/
+  - file: "fonts/arial.ttf"
+    id: arial_24
+    size: 24
+    glyphs: |-
+      ~*<>!"%()+=,-_.:°0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ абвгдеёжзийклмнопрстуфхцчшщьыъэюяabcdefghijklmnopqrstuvwxyz'/
+  - file: "fonts/arial.ttf"
+    id: arial_20
+    size: 20
+    glyphs: |-
+      ~*<>!"%()+=,-_.:°0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯABCDEFGHIJKLMNOPQRSTUVWXYZ абвгдеёжзийклмнопрстуфхцчшщьыъэюяabcdefghijklmnopqrstuvwxyz'/
+  - file: "fonts/fontawesome-webfont.ttf"
+    id: faw_24
+    size: 24
+    bpp: 4
+    glyphs: [
+      "\U0000f046", # ok
+      "\U0000f00d", # error
+      "\U0000f071", # alert
+      "\U0000f112", # back
+      "\U0000f0EC", # movement
+      "\U0000f255", # effort
+      "\U0000f021", # reset
+      "\U0000f1bc", # rf
+      "\U0000f0ca", # menu
+      "\U0000f176", # up_arrow
+      "\U0000f175", # down_arrow
+      "\U0000f178", # right_arrow
+      "\U0000f177", # left_arrow
+      "\U0000f00c", # check
+    ]
+  - file: "fonts/icons_v2.ttf"
+    id: icons_28
+    size: 28
+    bpp: 4
+    glyphs: [
+    "\U0000e939", # temperature
+      ]
+display:
+  - platform: mipi_spi
+    model: ST7789V
+    cs_pin: ${cs_pin}
+    dc_pin: ${dc_pin}
+    reset_pin: ${reset_pin}
+#    auto_clear_enabled: False
+    update_interval: 1s
+    invert_colors: false
+    show_test_card: false
+    id: my_display
+    rotation: 180
+#    dimensions:
+#      height: 240
+#      width: 320
+    pages:
+      - id: main_page 
+        lambda: |-
+          // рамка по периметру
+          it.rectangle(0, 0, it.get_width(), it.get_height(), id(my_orange));
+
+          // напряжения ячеек
+          it.printf(10, 0, id(arial_24), id(my_orange), TextAlign::TOP_LEFT, "%.2fv", id(cell1_voltage).state);
+          it.printf(90, 0, id(arial_24), id(my_orange), TextAlign::TOP_LEFT, "%.2fv", id(cell2_voltage).state);
+          it.printf(170, 0, id(arial_24), id(my_orange), TextAlign::TOP_LEFT, "%.2fv", id(cell3_voltage).state);
+          // общее напряжение и процент заряда
+          it.printf(5, 150, id(arial_48), id(my_siren), TextAlign::TOP_LEFT, "%.2fv", id(accu_voltage).state);
+          it.printf(160, 155, id(arial_36), id(my_cyan), TextAlign::TOP_LEFT, "%.0f%%", id(charge_level).state);
+          // Ток и мощность
+          it.printf(140, 190, id(arial_48), id(my_siren), TextAlign::TOP_RIGHT, "%.1fA", id(accu_current).state);
+          it.printf(235, 195, id(arial_36), id(my_siren), TextAlign::TOP_RIGHT, "%.0fW", id(accu_power).state);
+          // --- ЭНЕРГИЯ И ЗАРЯД (всегда жёлто-оранжевые) ---
+          
+          it.printf(5, 240, id(arial_36), id(my_orange), "Всего: %.1fAh", id(battery_ah_level_sensor).state);
+          //it.printf(5, 240, id(arial_36), id(my_orange), "%.1fWh", id(energy_wh).state);
+          //it.printf(130, 240, id(arial_36), id(my_orange), "%.1fAh", id(charge_ah).state);
+
+          // температура
+          it.printf(0, 287, id(icons_28), id(my_blue), TextAlign::TOP_LEFT, "${temperature_icon}");
+          it.printf(30, 280, id(arial_36), id(my_green), TextAlign::TOP_LEFT, "%.1f°", id(temp_accu).state);
+          it.printf(125, 288, id(arial_24), id(my_cyan), TextAlign::TOP_LEFT, "%s", id(uptime_human).state.c_str());
+
+          // безопасный расчёт цвета заливки по уровню заряда
+          float charge = id(charge_level).state;
+          if (!std::isfinite(charge)) charge = 0.0f;
+          if (charge < 0.0f) charge = 0.0f;
+          if (charge > 100.0f) charge = 100.0f;
+
+          Color fill_color;
+          if (charge >= 65.0f) {
+            fill_color = id(my_green);
+          } else if (charge >= 30.0f) {
+            fill_color = id(my_yellow);
+          } else {
+            fill_color = id(my_red);
+          }
+
+          const int cell_w = 70;
+          const int cell_h = 110;
+          const int base_y = 40;
+          const int pad_x = 5;         // отступ по бокам для «клемм»-эффекта внутри рамки
+          const float min_v = 3.0f;    // минимум для ячейки Li-ion
+          const float max_v = 4.2f;    // максимум для ячейки Li-ion
+
+          const float v_range = max_v - min_v;
+          const float safe_range = (v_range <= 0.01f) ? 0.1f : v_range;
+
+          auto draw_cell_safe = [&](int x, float v) {
+            if (!std::isfinite(v)) v = min_v;
+            float pct = (v - min_v) / safe_range;
+            if (pct < 0.0f) pct = 0.0f;
+            if (pct > 1.0f) pct = 1.0f;
+            int fill_h = static_cast<int>(cell_h * pct);
+
+            // рамка ячейки
+            it.rectangle(x, base_y, cell_w, cell_h, id(my_white));
+
+            // заливка уровня (внутри рамки, с отступом по бокам)
+            if (fill_h > 0) {
+              int inner_w = cell_w - 2 * pad_x;
+              it.filled_rectangle(x + pad_x, base_y + cell_h - fill_h, inner_w, fill_h, fill_color);
+            }
+          };
+
+          draw_cell_safe(5,  id(cell1_voltage).state);
+          draw_cell_safe(85, id(cell2_voltage).state);
+          draw_cell_safe(165,id(cell3_voltage).state);
+
+          // «клеммы» — маленькие квадратики над ячейками
+          it.filled_rectangle(15, 30, 10, 10, id(my_blue));
+          it.filled_rectangle(50, 30, 10, 10, id(my_red));
+          it.filled_rectangle(95, 30, 10, 10, id(my_blue));
+          it.filled_rectangle(130, 30, 10, 10, id(my_red));
+          it.filled_rectangle(175, 30, 10, 10, id(my_blue));
+          it.filled_rectangle(210, 30, 10, 10, id(my_red));
+
+sensor:
+  - platform: ina3221
+    address: 0x41
+    channel_1:
+      bus_voltage:
+        name: "INA3221 Channel 1 Bus Voltage"
+        id: voltage_1
+        filters:
+          - sliding_window_moving_average:
+              window_size: 8
+              send_every: 2
+    channel_2:
+      bus_voltage:
+        name: "INA3221 Channel 2 Bus Voltage"
+        id: voltage_2
+        filters:
+          - sliding_window_moving_average:
+              window_size: 8
+              send_every: 2
+    channel_3:
+      bus_voltage:
+        name: "INA3221 Channel 3 Bus Voltage"
+        id: voltage_3
+        filters:
+          - sliding_window_moving_average:
+              window_size: 8
+              send_every: 2
+    update_interval: 500ms
+  - platform: template                      
+    name: "Cell 1 Voltage"
+    id: cell1_voltage
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    state_class: "measurement"
+    lambda: 'return (id(voltage_1).state - 0.04);'
+    update_interval: 2s
+  - platform: template                      
+    name: "Cell 2 Voltage"
+    id: cell2_voltage
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    state_class: "measurement"
+    lambda: 'return (id(voltage_2).state - id(voltage_1).state - 0.15);'
+    update_interval: 2s
+  - platform: template                     
+    name: "Cell 3 Voltage"
+    id: cell3_voltage
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    state_class: "measurement"
+    lambda: 'return (id(voltage_3).state - id(voltage_2).state - 0.15);'
+    update_interval: 2s
+  - platform: template                     
+    name: "Accu Voltage"
+    id: accu_voltage
+    unit_of_measurement: "V"
+    device_class: "voltage"
+    state_class: "measurement"
+    lambda: 'return (id(voltage_3).state - 0.34);'
+    update_interval: 2s
+  - platform: dallas_temp
+    address: ${one_wire_address}
+    name: Temperature Accu
+    id: temp_accu
+    update_interval: 5s
+  - platform: template    # Остаток заряда по напряжению
+    name: "Charge Level"
+    id: charge_level
+    lambda: 'return (id(accu_voltage).state);'
+    update_interval: 2s
+    unit_of_measurement: "%"
+    filters:
+      - calibrate_linear:
+         method: exact
+         datapoints:
+#          # Map 0.0 (from sensor) to 0.0 (true value)
+          - 9.0 -> 0.0
+          - 9.3 -> 5.0
+          - 9.5 -> 8.0
+          - 9.7 -> 10.0
+          - 10.0 -> 15.0
+          - 10.3 -> 18.0
+          - 10.5 -> 20.0
+          - 10.6 -> 25.0
+          - 10.7 -> 30.0
+          - 10.8 -> 40.0
+          - 10.9 -> 50.0
+          - 11.0 -> 55.0
+          - 11.1 -> 60.0
+          - 11.2 -> 65.0
+          - 11.3 -> 70.0
+          - 11.5 -> 80.0
+          - 11.8 -> 85.0
+          - 12.0 -> 91.0
+          - 12.2 -> 93.0
+          - 12.4 -> 95.0
+          - 12.6 -> 100.0
+      - round: 0
+      - clamp:
+          min_value: 0
+          max_value: 100
+          ignore_out_of_range: true
+  - platform: ina226
+    address: 0x40
+    shunt_resistance: 0.00225 ohm
+    max_current: 60A
+    # adc time used for both, Bus Voltage and Shunt Voltage
+    adc_time: 140us
+    adc_averaging: 128
+    update_interval: 500ms
+    current:
+      name: "INA226 Current"
+      id: accu_current
+      filters:
+        - lambda: |-
+            return -x;
+#        - delta: 0.05  # Игнорирует изменения меньше 0.05А
+        - calibrate_linear: # Калибруем INA по токовым клещам
+           method: exact
+           datapoints:
+            - -35.0 -> -63.0
+            - -30.0 -> -50.0
+            - -20.0 -> -18.0
+            - -8.0 -> -7.4
+            - -2.6 -> -2.4
+            - 0.6 -> 0.3
+            - 2.6 -> 2.4
+            - 8.0 -> 7.4
+            - 20.0 -> 18.0
+            - 30.0 -> 50.0
+            - 35.0 -> 63.0
+        - sliding_window_moving_average:
+            window_size: 8
+            send_every: 2
+        - lambda: |-
+            if (x >= -0.3f && x <= 0.3f) {
+              return 0.0f;
+            }
+            return x;
+  - platform: template                     
+    name: "Accu Power"
+    id: accu_power
+    unit_of_measurement: "W"
+    device_class: "power"
+    state_class: "measurement"
+    lambda: 'return std::fabs(id(voltage_3).state * id(accu_current).state);'
+    update_interval: 1s
+  - platform: integration
+    name: "Energy Wh"
+    id: energy_wh
+    sensor: accu_power
+    unit_of_measurement: "Wh"
+    accuracy_decimals: 2
+    device_class: energy
+    time_unit: h
+    restore: true
+  - platform: integration
+    name: "Charge Ah"
+    id: charge_ah
+    sensor: accu_current
+    unit_of_measurement: "Ah"
+    accuracy_decimals: 2
+    device_class: battery
+    time_unit: h
+    restore: true
+  - platform: template
+    name: "Battery Ah Level"
+    id: battery_ah_level_sensor
+    unit_of_measurement: "Ah"
+    device_class: battery
+    state_class: measurement
+    lambda: |-
+      return id(battery_ah_level);
+    update_interval: 5s
+one_wire:
+  - platform: gpio
+    pin: ${one_wire_pin}
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: ${button_pin} # Вход кнопки энкодера
+      inverted: true
+      mode: INPUT_PULLUP
+    name: "Button"
+    id: my_button
+    on_multi_click:
+    - timing: # Одиночное короткое нажатие
+        - ON for at most 1s
+        - OFF for at least 0.5s
+      then:
+        - lambda: |-
+            // Одно нажатие: сброс в 0
+            id(battery_ah_level) = 0.0f;  // сброс в 0
+    - timing:  # Двойное нажатие
+        - ON for at most 1s
+        - OFF for at most 1s
+        - ON for at most 1s
+        - OFF for at least 0.2s
+      then:
+        - lambda: |-
+            // Двойное нажатие: полный бак (75 Ah)
+            id(battery_ah_level) = 75.0f; // полный бак
+light:
+  - platform: monochromatic
+    output: backlight_pwm                        #  Подсветка дисплея
+    name: "Display Backlight"
+    id: back_light
+    restore_mode: RESTORE_DEFAULT_ON 
+output:
+  - platform: ledc                                 # Подсветка дисплея
+    pin: ${backlight_pin}
+    id: backlight_pwm
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          float current = id(accu_current).state;
+          if (!std::isfinite(current)) return;
+
+          float dt_hours = 1.0f / 3600.0f;
+          float delta_ah = std::fabs(current) * dt_hours;
+
+          // читаем значение globals напрямую
+          float new_val = id(battery_ah_level);
+
+          // Теперь: если ток > 0 — это зарядка, уровень растёт , Если ток < 0 — разрядка, уровень падает
+          if (current > 0.0f) {
+            new_val += delta_ah;
+          } else if (current < 0.0f) {
+            new_val -= delta_ah;
+          }
+          // если ток == 0 — ничего не меняем
+
+          // границы 0…75 Ah
+          if (new_val < 0.0f) new_val = 0.0f;
+          if (new_val > 75.0f) new_val = 75.0f;
+
+          // записываем обратно напрямую (это и есть сохранение в NVS)
+          id(battery_ah_level) = new_val;
