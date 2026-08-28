@@ -48,8 +48,8 @@
 - [yaml файл прошивки](accu_monitor.yaml)
 - [внешний вид](images/accu_monitor.jpg)
 - [Схема соединений](images/shema_accu_monitor.jpg)
-- [Видео YOUTUBE](https://youtu.be/gehCZNr6iQs)
-- [Видео RUTUBE](https://rutube.ru/video/cc3a3956d8b0eb6a3adb3e8a28c60828/)
+- [Видео YOUTUBE](https://youtu.be/i2Slm3AA3cA)
+- [Видео RUTUBE](https://rutube.ru/video/e69c35bf5909d5656baa30d087189200/)
 
 ## 📄 Лицензия
 
